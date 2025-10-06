@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SDA Modeler – MVP (Capex & Interest)</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">SDA Modeler</div>
+        <div class="menu">
+          <button class="menu-item" data-target="variables">Variables</button>
+          <button class="menu-item" data-target="asset">Asset</button>
+          <button class="menu-item" data-target="cashflow">Cashflow</button>
+        </div>
+        <div class="menu-actions">
+          <button id="expandAll">Expand All</button>
+          <button id="collapseAll">Collapse All</button>
+        </div>
+      </aside>
+
+      <main class="container">
+        <h1>SDA Modeler – MVP</h1>
+        <p class="subtitle">Focus: purchase & build cashflow with capitalised interest. No persistence.</p>
+
+      <section id="group-variables" class="group">
+      <section class="panel">
+        <h2>Scenario</h2>
+        <div class="grid">
+          <label>
+            Start Month
+            <input type="month" id="startMonth" />
+          </label>
+          <label>
+            End Month
+            <input type="month" id="endMonth" />
+          </label>
+          <label>
+            Annual Rate (%)
+            <input type="number" id="annualRate" step="0.01" value="7.00" />
+          </label>
+          <label>
+            Day Count
+            <select id="dayCount">
+              <option value="ACT/365">ACT/365</option>
+              <option value="30/360">30/360</option>
+              <option value="ACT/360">ACT/360</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="capitalise" checked /> Capitalise Interest
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Budget – Land & Acquisition</h2>
+        <div class="grid land-grid">
+          <label>
+            Land Value ($)
+            <input type="number" id="landValue" step="0.01" value="600000" />
+          </label>
+          <label>
+            Deposit ($)
+            <input type="number" id="landDeposit" step="0.01" value="60000" />
+          </label>
+          <label>
+            Loan Amount ($)
+            <input type="number" id="landLoan" step="0.01" readonly />
+          </label>
+          <label>
+            Settlement Month
+            <input type="month" id="landMonth" />
+          </label>
+          <label>
+            Stamp Duty (NSW) ($)
+            <input type="number" id="landStampDuty" step="0.01" readonly />
+          </label>
+          <label>
+            Other Acquisition Costs ($)
+            <input type="number" id="otherAcqCosts" step="0.01" value="0" />
+          </label>
+          <label>
+            Other Costs Month
+            <input type="month" id="otherAcqMonth" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Budget – Construction</h2>
+        <div class="grid">
+          <label>
+            Construction Budget ($)
+            <input type="number" id="conAmount" step="0.01" value="900000" />
+          </label>
+          <label>
+            Build Start
+            <input type="month" id="conStart" />
+          </label>
+          <label>
+            Build End
+            <input type="month" id="conEnd" />
+          </label>
+          <label>
+            Allocation Method
+            <select id="allocation">
+              <option value="straight">Straight-line</option>
+              <option value="s_curve">S-curve</option>
+            </select>
+          </label>
+          <label id="sigmaRow">
+            S-curve Sigma (months)
+            <input type="number" id="sigma" step="0.1" value="3.0" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Income – Participants</h2>
+        <div class="grid">
+          <label>
+            Vacancy Factor (%)
+            <input type="number" id="vacancyPct" step="0.1" value="0" />
+          </label>
+          <label>
+            Index Month (1–12)
+            <input type="number" id="indexMonth" min="1" max="12" step="1" value="7" />
+          </label>
+          <label>
+            SDA Annual Index (%)
+            <input type="number" id="sdaIndexPct" step="0.1" value="0" />
+          </label>
+          <label>
+            RRC Annual Index (%)
+            <input type="number" id="rrcIndexPct" step="0.1" value="0" />
+          </label>
+        </div>
+        <div class="participants">
+          <div class="participants-head">
+            <div>Label</div>
+            <div>Start Month</div>
+            <div>SDA / month ($)</div>
+            <div>RRC / month ($)</div>
+            <div>Ramp (months)</div>
+            <div>Target Occ. (%)</div>
+            <div></div>
+          </div>
+          <div id="participants"></div>
+          <div class="participants-actions">
+            <button id="addParticipant" type="button">+ Add Participant</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel actions">
+        <button id="calcBtn">Calculate</button>
+        <span id="error" class="error"></span>
+      </section>
+      </section> <!-- end group-variables -->
+
+      <section id="group-asset" class="group">
+        <section class="panel">
+          <h2>Asset – Annual Tracker</h2>
+          <div class="grid">
+            <label>
+              Base Value ($)
+              <input type="number" id="assetBaseValue" step="0.01" value="0" />
+            </label>
+            <label>
+              Valuation Start Month
+              <input type="month" id="assetStartMonth" />
+            </label>
+            <label>
+              Index Month (1–12)
+              <input type="number" id="assetIndexMonth" min="1" max="12" step="1" value="7" />
+            </label>
+            <label>
+              Annual Growth (%)
+              <input type="number" id="assetGrowthPct" step="0.1" value="5" />
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table id="assetTable">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Month</th>
+                  <th>Asset Value ($)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="group-cashflow" class="group">
+      <section class="panel">
+        <h2>Summary</h2>
+        <div class="summary-grid">
+          <div>
+            <div class="kpi-label">Total Draws</div>
+            <div class="kpi-value" id="kpiDraws">–</div>
+          </div>
+          <div>
+            <div class="kpi-label">Capitalised Interest</div>
+            <div class="kpi-value" id="kpiInterest">–</div>
+          </div>
+          <div>
+            <div class="kpi-label">Debt at PC</div>
+            <div class="kpi-value" id="kpiDebt">–</div>
+          </div>
+          <div>
+            <div class="kpi-label">Peak Balance</div>
+            <div class="kpi-value" id="kpiPeak">–</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Monthly Cashflow</h2>
+        <div class="table-wrap">
+          <table id="results">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Draws ($)</th>
+                <th>Interest ($)</th>
+                <th>Income ($)</th>
+                <th>Balance ($)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+      </section> <!-- end group-cashflow -->
+    </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+  </html>
