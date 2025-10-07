@@ -1,5 +1,7 @@
 // SDA Modeler – MVP cashflow engine (pure JS)
 
+let lastSnapshot = null;
+
 function fmt(n) {
   if (n === null || n === undefined || isNaN(n)) return '–';
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -289,6 +291,7 @@ function onCalc() {
   // Render Asset tracker
   const assetSeries = computeAssetSeries(i);
   renderAsset(assetSeries);
+  lastSnapshot = { inputs: i, cashflow: out, assetSeries, generatedAt: new Date().toISOString() };
 }
 
 function onAllocChange() {
@@ -298,6 +301,7 @@ function onAllocChange() {
 
 document.getElementById('allocation').addEventListener('change', onAllocChange);
 document.getElementById('calcBtn').addEventListener('click', onCalc);
+document.getElementById('exportBtn').addEventListener('click', onExport);
 
 // Set sensible defaults for months (today..+18m, build in first 12m)
 (function initDefaults() {
@@ -494,4 +498,119 @@ if (assetBaseInputEl) {
   assetBaseInputEl.addEventListener('input', () => {
     assetBaseInputEl.dataset.userEdited = 'true';
   });
+}
+
+function csvValue(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  if (!/[",\n]/.test(s)) return s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function fmtNumber(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return '';
+  return num.toFixed(2);
+}
+
+function buildExportCsv(snapshot) {
+  if (!snapshot) return '';
+  const { inputs, cashflow, assetSeries, generatedAt } = snapshot;
+  const lines = [];
+  lines.push('SDA Modeler Export');
+  lines.push(`Generated,${generatedAt || new Date().toISOString()}`);
+  lines.push('');
+  lines.push('Scenario');
+  lines.push(['Start Month', inputs.startMonth || ''].map(csvValue).join(','));
+  lines.push(['End Month', inputs.endMonth || ''].map(csvValue).join(','));
+  lines.push(['Annual Rate (%)', fmtNumber(inputs.annualRatePct || 0)].map(csvValue).join(','));
+  lines.push(['Day Count', inputs.dayCount || ''].map(csvValue).join(','));
+  lines.push(['Capitalise Interest', inputs.capitalise ? 'Yes' : 'No'].map(csvValue).join(','));
+  lines.push('');
+  lines.push('Budget');
+  lines.push(['Land Value ($)', fmtNumber(inputs.landValue || 0)].map(csvValue).join(','));
+  lines.push(['Deposit ($)', fmtNumber(inputs.landDeposit || 0)].map(csvValue).join(','));
+  lines.push(['Loan Amount ($)', fmtNumber(inputs.landLoan || 0)].map(csvValue).join(','));
+  lines.push(['Settlement Month', inputs.landMonth || ''].map(csvValue).join(','));
+  lines.push(['Stamp Duty ($)', fmtNumber(inputs.landStampDuty || 0)].map(csvValue).join(','));
+  lines.push(['Other Acquisition Costs ($)', fmtNumber(inputs.otherAcqCosts || 0)].map(csvValue).join(','));
+  lines.push(['Other Costs Month', inputs.otherAcqMonth || ''].map(csvValue).join(','));
+  lines.push(['Construction Budget ($)', fmtNumber(inputs.conAmount || 0)].map(csvValue).join(','));
+  lines.push(['Build Start', inputs.conStart || ''].map(csvValue).join(','));
+  lines.push(['Build End', inputs.conEnd || ''].map(csvValue).join(','));
+  lines.push(['Allocation', inputs.allocation || ''].map(csvValue).join(','));
+  lines.push(['S-curve Sigma', fmtNumber(inputs.sigma || 0)].map(csvValue).join(','));
+  lines.push('');
+  lines.push('Income Settings');
+  lines.push(['Vacancy Factor (%)', fmtNumber(inputs.vacancyPct || 0)].map(csvValue).join(','));
+  lines.push(['Index Month', inputs.indexMonth || ''].map(csvValue).join(','));
+  lines.push(['SDA Annual Index (%)', fmtNumber(inputs.sdaIndexPct || 0)].map(csvValue).join(','));
+  lines.push(['RRC Annual Index (%)', fmtNumber(inputs.rrcIndexPct || 0)].map(csvValue).join(','));
+  lines.push('');
+  lines.push('Participants');
+  lines.push(['Label', 'Start Month', 'SDA / month ($)', 'RRC / month ($)', 'Ramp (months)', 'Target Occ. (%)'].map(csvValue).join(','));
+  (inputs.participants || []).forEach(p => {
+    lines.push([
+      p.label || '',
+      p.start || '',
+      fmtNumber(p.sda || 0),
+      fmtNumber(p.rrc || 0),
+      p.ramp != null ? p.ramp : '',
+      p.target != null ? p.target : ''
+    ].map(csvValue).join(','));
+  });
+  lines.push('');
+  lines.push('Totals');
+  const totals = cashflow?.totals || {};
+  lines.push(['Total Draws ($)', fmtNumber(totals.totalDraws || 0)].map(csvValue).join(','));
+  lines.push(['Capitalised Interest ($)', fmtNumber(totals.totalInterest || 0)].map(csvValue).join(','));
+  lines.push(['Total Income ($)', fmtNumber(totals.totalIncome || 0)].map(csvValue).join(','));
+  lines.push(['Deposit Paid ($)', fmtNumber(totals.totalDeposit || 0)].map(csvValue).join(','));
+  lines.push(['Stamp Duty ($)', fmtNumber(totals.totalStampDuty || 0)].map(csvValue).join(','));
+  lines.push(['Debt at Practical Completion ($)', fmtNumber(totals.debtAtPC || 0)].map(csvValue).join(','));
+  lines.push(['Peak Balance ($)', fmtNumber(totals.peakBalance || 0)].map(csvValue).join(','));
+  lines.push('');
+  lines.push('Monthly Cashflow');
+  lines.push(['Month', 'Draws ($)', 'Interest ($)', 'Income ($)', 'Balance ($)'].map(csvValue).join(','));
+  (cashflow?.rows || []).forEach(r => {
+    lines.push([
+      r.ym || '',
+      fmtNumber(r.draws || 0),
+      fmtNumber(r.interest || 0),
+      fmtNumber(r.income || 0),
+      fmtNumber(r.balance || 0)
+    ].map(csvValue).join(','));
+  });
+  lines.push('');
+  lines.push('Asset Tracker');
+  lines.push(['Label', 'Month', 'Asset Value ($)'].map(csvValue).join(','));
+  (assetSeries || []).forEach(r => {
+    lines.push([
+      r.label || '',
+      r.ym || '',
+      fmtNumber(r.value || 0)
+    ].map(csvValue).join(','));
+  });
+  return lines.join('\r\n');
+}
+
+function onExport() {
+  const errorEl = document.getElementById('error');
+  if (!lastSnapshot) {
+    if (errorEl) errorEl.textContent = 'Calculate results before exporting.';
+    return;
+  }
+  if (errorEl) errorEl.textContent = '';
+  const csv = buildExportCsv(lastSnapshot);
+  if (!csv) return;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const start = lastSnapshot.inputs?.startMonth || 'export';
+  a.href = url;
+  a.download = `sda-modeler-${start}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
