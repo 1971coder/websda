@@ -1,6 +1,7 @@
 // SDA Modeler – MVP cashflow engine (pure JS)
 
 let lastSnapshot = null;
+const kpiElements = initKpiElements();
 
 function fmt(n) {
   if (n === null || n === undefined || isNaN(n)) return '–';
@@ -223,6 +224,35 @@ function validate(i) {
   return errors;
 }
 
+function createKpiBox(summary, id, label) {
+  let valueEl = summary.querySelector(`#${id}`);
+  if (!valueEl) {
+    const box = document.createElement('div');
+    box.innerHTML = `<div class="kpi-label">${label}</div><div class="kpi-value" id="${id}">–</div>`;
+    summary.appendChild(box);
+    valueEl = box.querySelector('.kpi-value');
+  }
+  return valueEl;
+}
+
+function initKpiElements() {
+  const summary = document.querySelector('.summary-grid');
+  if (!summary) return {};
+  const definitions = [
+    { id: 'kpiDraws', label: 'Total Draws' },
+    { id: 'kpiInterest', label: 'Capitalised Interest' },
+    { id: 'kpiDebt', label: 'Debt at PC' },
+    { id: 'kpiPeak', label: 'Peak Balance' },
+    { id: 'kpiIncome', label: 'Total Income' },
+    { id: 'kpiDeposit', label: 'Deposit Paid' },
+    { id: 'kpiStamp', label: 'Stamp Duty' },
+  ];
+  return definitions.reduce((acc, def) => {
+    acc[def.id] = createKpiBox(summary, def.id, def.label);
+    return acc;
+  }, {});
+}
+
 function render({ rows, totals }) {
   const tbody = document.querySelector('#results tbody');
   tbody.innerHTML = '';
@@ -237,38 +267,13 @@ function render({ rows, totals }) {
     tbody.appendChild(tr);
   }
 
-  document.getElementById('kpiDraws').textContent = `$${fmt(totals.totalDraws)}`;
-  document.getElementById('kpiInterest').textContent = `$${fmt(totals.totalInterest)}`;
-  document.getElementById('kpiDebt').textContent = `$${fmt(totals.debtAtPC)}`;
-  document.getElementById('kpiPeak').textContent = `$${fmt(totals.peakBalance)}`;
-  // Add/Update a simple Total Income KPI if present in DOM; if not, append below Summary
-  let incomeEl = document.getElementById('kpiIncome');
-  if (!incomeEl) {
-    const summary = document.querySelector('.summary-grid');
-    const box = document.createElement('div');
-    box.innerHTML = '<div class="kpi-label">Total Income</div><div class="kpi-value" id="kpiIncome">–</div>';
-    summary.appendChild(box);
-    incomeEl = box.querySelector('#kpiIncome');
-  }
-  incomeEl.textContent = `$${fmt(totals.totalIncome)}`;
-  let depositEl = document.getElementById('kpiDeposit');
-  if (!depositEl) {
-    const summary = document.querySelector('.summary-grid');
-    const box = document.createElement('div');
-    box.innerHTML = '<div class="kpi-label">Deposit Paid</div><div class="kpi-value" id="kpiDeposit">–</div>';
-    summary.appendChild(box);
-    depositEl = box.querySelector('#kpiDeposit');
-  }
-  depositEl.textContent = `$${fmt(totals.totalDeposit)}`;
-  let stampEl = document.getElementById('kpiStamp');
-  if (!stampEl) {
-    const summary = document.querySelector('.summary-grid');
-    const box = document.createElement('div');
-    box.innerHTML = '<div class="kpi-label">Stamp Duty</div><div class="kpi-value" id="kpiStamp">–</div>';
-    summary.appendChild(box);
-    stampEl = box.querySelector('#kpiStamp');
-  }
-  stampEl.textContent = `$${fmt(totals.totalStampDuty)}`;
+  if (kpiElements.kpiDraws) kpiElements.kpiDraws.textContent = `$${fmt(totals.totalDraws)}`;
+  if (kpiElements.kpiInterest) kpiElements.kpiInterest.textContent = `$${fmt(totals.totalInterest)}`;
+  if (kpiElements.kpiDebt) kpiElements.kpiDebt.textContent = `$${fmt(totals.debtAtPC)}`;
+  if (kpiElements.kpiPeak) kpiElements.kpiPeak.textContent = `$${fmt(totals.peakBalance)}`;
+  if (kpiElements.kpiIncome) kpiElements.kpiIncome.textContent = `$${fmt(totals.totalIncome)}`;
+  if (kpiElements.kpiDeposit) kpiElements.kpiDeposit.textContent = `$${fmt(totals.totalDeposit)}`;
+  if (kpiElements.kpiStamp) kpiElements.kpiStamp.textContent = `$${fmt(totals.totalStampDuty)}`;
 }
 
 function onCalc() {
