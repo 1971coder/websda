@@ -125,10 +125,10 @@ function computeCashflow(inputs) {
   let totalIncome = 0;
   let peak = 0;
 
-  const vFactor = Math.max(0, Math.min(100, vacancyPct || 0)) / 100;
-  const idxMonth = Math.min(12, Math.max(1, Math.floor(indexMonth || 7)));
-  const sdaIdx = Math.max(-100, Number(sdaIndexPct) || 0) / 100;
-  const rrcIdx = Math.max(-100, Number(rrcIndexPct) || 0) / 100;
+  const vFactor = (vacancyPct || 0) / 100;
+  const idxMonth = indexMonth;
+  const sdaIdx = (sdaIndexPct || 0) / 100;
+  const rrcIdx = (rrcIndexPct || 0) / 100;
 
   
 
@@ -173,6 +173,31 @@ function computeCashflow(inputs) {
 
 function collectInputs() {
   const get = id => document.getElementById(id);
+  const clampNumber = (value, min, max, decimals = null, fallback = 0) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    const clamped = Math.min(max, Math.max(min, num));
+    if (decimals === null) return clamped;
+    const factor = Math.pow(10, decimals);
+    return Math.round(clamped * factor) / factor;
+  };
+
+  const vacancyPct = clampNumber(get('vacancyPct').value, 0, 100, 2, 0);
+  const indexMonth = clampNumber(get('indexMonth').value, 1, 12, 0, 7);
+  const sdaIndexPct = clampNumber(get('sdaIndexPct').value, -100, 100, 2, 0);
+  const rrcIndexPct = clampNumber(get('rrcIndexPct').value, -100, 100, 2, 0);
+
+  // Write sanitized values back to the DOM so downstream reads stay consistent
+  const setValue = (id, val, decimals) => {
+    const el = get(id);
+    if (!el) return;
+    el.value = decimals != null ? val.toFixed(decimals) : String(val);
+  };
+  setValue('vacancyPct', vacancyPct, 2);
+  setValue('indexMonth', indexMonth, 0);
+  setValue('sdaIndexPct', sdaIndexPct, 2);
+  setValue('rrcIndexPct', rrcIndexPct, 2);
+
   return {
     startMonth: get('startMonth').value,
     endMonth: get('endMonth').value,
@@ -194,10 +219,10 @@ function collectInputs() {
     allocation: get('allocation').value,
     sigma: parseFloat(get('sigma').value) || 0,
 
-    vacancyPct: parseFloat(get('vacancyPct').value) || 0,
-    indexMonth: parseInt(get('indexMonth').value, 10) || 7,
-    sdaIndexPct: parseFloat(get('sdaIndexPct').value) || 0,
-    rrcIndexPct: parseFloat(get('rrcIndexPct').value) || 0,
+    vacancyPct,
+    indexMonth,
+    sdaIndexPct,
+    rrcIndexPct,
     participants: collectParticipants()
   };
 }
@@ -213,8 +238,6 @@ function validate(i) {
   if (i.landDeposit < 0) errors.push('Deposit cannot be negative');
   if (i.landDeposit > i.landValue) errors.push('Deposit cannot exceed land value');
   if (i.otherAcqCosts > 0 && !i.otherAcqMonth) errors.push('Other acquisition costs month required when amount > 0');
-  if (i.vacancyPct < 0 || i.vacancyPct > 100) errors.push('Vacancy must be 0–100%');
-  if (i.indexMonth < 1 || i.indexMonth > 12) errors.push('Index Month must be 1–12');
   for (const p of i.participants) {
     const gross = (Number(p.sda) || 0) + (Number(p.rrc) || 0);
     if (gross > 0 && !p.start) { errors.push(`Participant ${p.label || ''}: Start Month required`); break; }
