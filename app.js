@@ -130,22 +130,35 @@ function computeCashflow(inputs) {
   const sdaIdx = Math.max(-100, Number(sdaIndexPct) || 0) / 100;
   const rrcIdx = Math.max(-100, Number(rrcIndexPct) || 0) / 100;
 
-  
+  const normalizedParticipants = (participants || []).map(p => {
+    const startDate = p.start ? new Date(`${p.start}-01`) : null;
+    const startYm = startDate && !isNaN(startDate) ? `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}` : null;
+    const targetRaw = Number(p.target);
+    const targetPct = Number.isFinite(targetRaw) ? targetRaw : 100;
+    return {
+      ...p,
+      start: startYm,
+      sda: Number(p.sda) || 0,
+      rrc: Number(p.rrc) || 0,
+      target: Math.max(0, Math.min(100, targetPct)) / 100,
+      ramp: Math.max(0, Math.floor(p.ramp || 0))
+    };
+  });
+
+
 
   function participantIncome(p, ym) {
     if (!p.start || cmpYm(ym, p.start) < 0) return 0;
     const diff = monthsDiff(p.start, ym); // 0 at start month
-    const target = Math.max(0, Math.min(100, p.target || 100)) / 100;
-    const ramp = Math.max(0, Math.floor(p.ramp || 0));
+    const target = p.target;
+    const ramp = p.ramp;
     let occ;
     if (ramp <= 0) occ = target;
     else occ = Math.min(target, target * ((diff + 1) / ramp));
     // Annual step indexation on index month counted from scenario start
     const steps = indexSteps(startMonth, ym, idxMonth);
-    const sdaBase = Number(p.sda) || 0;
-    const rrcBase = Number(p.rrc) || 0;
-    const sdaVal = sdaBase * Math.pow(1 + sdaIdx, steps);
-    const rrcVal = rrcBase * Math.pow(1 + rrcIdx, steps);
+    const sdaVal = p.sda * Math.pow(1 + sdaIdx, steps);
+    const rrcVal = p.rrc * Math.pow(1 + rrcIdx, steps);
     const gross = sdaVal + rrcVal;
     return gross * occ * (1 - vFactor);
   }
@@ -154,7 +167,7 @@ function computeCashflow(inputs) {
     const draws = (land.get(ym) || 0) + (con.get(ym) || 0);
     const dcf = dayCountFactor(ym, dayCount);
     const interest = balance * rate * dcf;
-    const income = (participants || []).reduce((sum, p) => sum + participantIncome(p, ym), 0);
+    const income = normalizedParticipants.reduce((sum, p) => sum + participantIncome(p, ym), 0);
     // Apply income to reduce total balance once participants start
     const grossDelta = draws + (capitalise ? interest : 0) - income;
     const newBalance = Math.max(0, balance + grossDelta);
