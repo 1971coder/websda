@@ -2,6 +2,14 @@
 
 let lastSnapshot = null;
 
+function debounce(fn, delay = 150) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), delay);
+  };
+}
+
 function fmt(n) {
   if (n === null || n === undefined || isNaN(n)) return '–';
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -471,7 +479,6 @@ function updateLandFinance() {
   }
   loanEl.value = loan.toFixed(2);
   stampEl.value = stamp.toFixed(2);
-  updateAssetBaseEstimate();
 }
 
 function updateAssetBaseEstimate() {
@@ -485,13 +492,19 @@ function updateAssetBaseEstimate() {
   assetInput.value = auto.toFixed(2);
 }
 
+const debouncedUpdateAssetBaseEstimate = debounce(updateAssetBaseEstimate);
+const debouncedUpdateLandFinance = debounce(() => {
+  updateLandFinance();
+  debouncedUpdateAssetBaseEstimate();
+});
+
 ['landValue','landDeposit'].forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('input', updateLandFinance);
+  if (el) el.addEventListener('input', debouncedUpdateLandFinance);
 });
 ['conAmount','otherAcqCosts','landStampDuty'].forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('input', updateAssetBaseEstimate);
+  if (el) el.addEventListener('input', debouncedUpdateAssetBaseEstimate);
 });
 const assetBaseInputEl = document.getElementById('assetBaseValue');
 if (assetBaseInputEl) {
